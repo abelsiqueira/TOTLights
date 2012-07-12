@@ -1,0 +1,19 @@
+Turn on the lights - version 0.8
+
+Objetive: Turn on all the lights.
+
+Contact: abel.s.siqueira@gmail.com
+
+---------------------------------------------------------------------
+
+Installing: You will need Allegro 5 and its dependencies. Then simply enter
+
+$ make
+
+and run the game with
+
+$ ./totlights
+
+---------------------------------------------------------------------
+
+Version 0.8: First release version

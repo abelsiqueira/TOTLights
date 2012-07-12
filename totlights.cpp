@@ -1,0 +1,214 @@
+/* Copyright 2012 Abel Soares Siqueira
+ *
+ * Turn on the lights - version 0.8
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+#include <iostream>
+#include <vector>
+#include <allegro5/allegro.h>
+#include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_ttf.h>
+
+using namespace std;
+
+const float FPS = 60;
+const int grid_size = 130;
+int nW = 4, nH = 4;
+int SCREEN_W = nW*(grid_size + 2) - 1;
+int SCREEN_H = nH*(grid_size + 2) - 1;
+vector < bool > gridon (nW*nH, false);
+
+void restart () {
+  for ( int i = 0; i < nW*nH; i++ ) {
+    if ( rand() % 3 == 0 )
+      gridon[i] = true;
+    else
+      gridon[i] = false;
+  }
+}
+
+void Redraw () {
+  al_clear_to_color (al_map_rgb(0,0,0));
+  for (int i = 0; i < nW*nH; i++) {
+    int x = (grid_size + 2)*(i/nH) + 1, y = (grid_size + 2)*(i%nH) + 1;
+    if (gridon[i]) {
+      al_draw_filled_rectangle (x, y, x + grid_size, y + grid_size, al_map_rgb(0,255,0));
+    } else {
+      al_draw_filled_rectangle (x, y, x + grid_size, y + grid_size, al_map_rgb(0,50,0));
+    }
+  }
+
+}
+
+void activate_light (int x, int y) {
+  int i = x/(grid_size + 2), j = y/(grid_size + 2);
+  int k = i*nH + j;
+  bool newval = gridon[k];
+  newval = 1 - newval;
+  gridon[k] = newval;
+  if (i > 0) {
+    k = (i - 1)*nH + j;
+    newval = gridon[k];
+    newval = 1 - newval;
+    gridon[k] = newval;
+  }
+  if (i < nW - 1) {
+    k = (i + 1)*nH + j;
+    newval = gridon[k];
+    newval = 1 - newval;
+    gridon[k] = newval;
+  }
+  if (j > 0) {
+    k = i*nH + j - 1;
+    newval = gridon[k];
+    newval = 1 - newval;
+    gridon[k] = newval;
+  }
+  if (j < nH - 1) {
+    k = i*nH + j + 1;
+    newval = gridon[k];
+    newval = 1 - newval;
+    gridon[k] = newval;
+  }
+}
+
+
+bool test_victory () {
+  for (int i = 0; i < nW*nH; i++) {
+    if (!gridon[i])
+      return false;
+  }
+  return true;
+}
+
+
+int main (int argc, char *argv[]) {
+
+  ALLEGRO_DISPLAY *display = NULL;
+  ALLEGRO_EVENT_QUEUE *event_queue = NULL;
+  ALLEGRO_TIMER *timer = NULL;
+  bool redraw = true;
+  bool doexit = false;
+  bool win = false;
+  int font_size = 64;
+
+  if (!al_init()) {
+    std::cerr << "failed to initialize allegro!" << std::endl;
+    return -1;
+  }
+
+  if (!al_init_primitives_addon()) {
+    return -1;
+  }
+
+  if (!al_install_mouse()) {
+    return -1;
+  }
+
+  if (!al_install_keyboard()) {
+    return -1;
+  }
+
+  timer = al_create_timer(1.0 / FPS);
+  if (!timer) {
+    return -1;
+  }
+
+  display = al_create_display (SCREEN_W, SCREEN_H);
+  if (!display) {
+    std::cerr << "failed to create display!" << std::endl;
+    al_destroy_timer (timer);
+    return 1;
+  }
+  al_set_window_title (display, "Turn On The Lights");
+
+  event_queue = al_create_event_queue();
+  if (!event_queue) {
+    std::cerr << "blah" << std::endl;
+    al_destroy_display (display);
+    al_destroy_timer (timer);
+    return 2;
+  }
+
+  al_init_font_addon();
+  al_init_ttf_addon();
+  srand(time(0));
+
+  ALLEGRO_FONT *font = al_load_font ("DejaVuSans.ttf", font_size, 0);
+  
+  al_register_event_source (event_queue, al_get_display_event_source(display));
+  al_register_event_source (event_queue, al_get_timer_event_source(timer));
+  al_register_event_source (event_queue, al_get_mouse_event_source());
+  al_register_event_source (event_queue, al_get_keyboard_event_source());
+  al_clear_to_color(al_map_rgb(0,0,0));
+  al_flip_display();
+  al_start_timer (timer);
+  restart();
+  
+  while (!doexit) {
+    ALLEGRO_EVENT ev;
+    al_wait_for_event (event_queue, &ev);
+
+    if (ev.type == ALLEGRO_EVENT_TIMER) {
+      redraw = true;
+    } else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE) {
+      break;
+    } else if (ev.type == ALLEGRO_EVENT_MOUSE_AXES || 
+        ev.type == ALLEGRO_EVENT_MOUSE_ENTER_DISPLAY) {
+      //On move do nothing
+    } else if (ev.type == ALLEGRO_EVENT_KEY_DOWN) {
+      switch (ev.keyboard.keycode) {
+        case ALLEGRO_KEY_Q:
+        case ALLEGRO_KEY_ESCAPE:
+          doexit = true;
+          break;
+        default:
+          break;
+      }
+    } else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP) {
+      //On click
+      int x = ev.mouse.x;
+      int y = ev.mouse.y;
+      if ( win ) {
+        win = false;
+        restart();
+      } else {
+        activate_light (x,y);
+        redraw = true;
+      }
+    }
+
+    if (redraw && al_is_event_queue_empty (event_queue)) {
+      redraw = false;
+      if ( win ) {
+        al_draw_text (font, al_map_rgb(255,0,0), SCREEN_W/2, SCREEN_H/2 - font_size*3/2, ALLEGRO_ALIGN_CENTRE, "YOU");
+        al_draw_text (font, al_map_rgb(255,0,0), SCREEN_W/2, SCREEN_H/2 + font_size/2, ALLEGRO_ALIGN_CENTRE, "WIN");
+      } else {
+        Redraw();
+        if (test_victory())
+          win = true;
+      }
+      al_flip_display ();
+    }
+
+  }
+
+  al_destroy_timer (timer);
+  al_destroy_display (display);
+  al_destroy_event_queue(event_queue);
+  al_destroy_font (font);
+
+  return 0;
+}
